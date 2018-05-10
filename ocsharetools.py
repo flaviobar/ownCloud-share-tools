@@ -43,15 +43,29 @@ def check_request(request):
     if request.status_code != 200:
         request.raise_for_status()
         raise requests.exceptions.HTTPError(
-            '%s Client Error: %s' % (request.status_code, request.reason))
+            '{} Client Error: {}'.format(request.status_code, request.reason))
 
 
 def full_path_to_cloud(fullPath):
+    ## da sistemare, prende i path dalla vecchia versione, si aspetta
+    ## che in CONFIG_PATH/folders ci siano tanti file, uno per
+    ## account. Al momento penso che invece la directory folders non
+    ## venga più utilizzata. 
+    ## La nuova versione invece si aspetta un unico file di configurazione
+    ## owncloud.cfg dentro CONFIG_PATH
+    
     paths = []
     for f in os.listdir(CONFIG_PATH+'/folders'):
         config = ConfigParser.ConfigParser()
-        config.read('%s/%s' % (CONFIG_PATH+'/folders', f))
+        config.read('{}/{}'.format(CONFIG_PATH+'/folders', f))
         paths.append(config['ownCloud']['localPath'])
+    #  config = ConfigParser.ConfigParser()
+    #  config.read(CONFIG_PATH+'/owncloud.cfg')
+    #  for a in config['Accounts']:
+    #      if a.split('\\')[-1].split('=')[0]=='localpath':
+    #         paths.append(config['Accounts'][a])
+
+    ## ATTENZIONE stessa modifica da fare nella routine successiva
 
     for path in paths:
         if fullPath[:len(path)] == path:
@@ -81,7 +95,7 @@ class OCShareException(Exception):
         self.message = meta['message']
 
     def __str__(self):
-        return '%d %s' % (self.status_code, self.message)
+        return '{:d} {}'.format(self.status_code, self.message)
 
 
 class OCShareAPI:
@@ -102,7 +116,7 @@ class OCShareAPI:
                         path defines a folder
         """
         request = requests.get(
-            '%s%s/shares' % (self.url, API_PATH),
+            '{}{}/shares'.format(self.url, API_PATH),
             auth=(self.username, self.password),
             params={
                 'format': 'json',
@@ -128,16 +142,16 @@ class OCShareAPI:
         """
 
         request = requests.get(
-            '%s%s/shares/%d' % (self.url, API_PATH, share_id),
+            '{}{}/shares/{:d}'.format(self.url, API_PATH, share_id),
             auth=(self.username, self.password),
             params={'format': 'json'},
             verify=not self.disable_ssl_verification
         )
-        print('get_share_by_id: ', self.disable_ssl_verification)
+        # print('get_share_by_id: ', self.disable_ssl_verification)
         check_request(request)
         jsonfeed = request.json()
         check_status(jsonfeed)
-        return OCShare(self, **jsonfeed['ocs']['data']['element'])
+        return OCShare(self, **jsonfeed['ocs']['data'][0])
 
     def create_share(self, path, share_type, share_with=None,
                      public_upload=False, password=None, permissions=None):
