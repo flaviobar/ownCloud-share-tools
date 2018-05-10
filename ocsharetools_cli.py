@@ -244,10 +244,10 @@ def run():
                 subfiles=args.enable_subfiles
             )
             for share in shares:
-                print("#%d %s %s" % (share.id, share.url, share.path))
+                print('#{} {} {}'.format(share.id, share.url, share.path))
         elif args.subparser_name == "getshare":
             share = ocs.get_share_by_id(share_id=args.id)
-            print("#%d %s %s" % (share.id, share.url, share.path))
+            print('#{} {} {}'.format(share.id, share.url, share.path))
         elif args.subparser_name == "create":
             share = ocs.create_share(
                 path=args.path,
@@ -261,7 +261,7 @@ def run():
                     defaultPermissions(args.share_type)
                 )
             )
-            print("#%d %s %s" % (share.id, share.url, share.path))
+            print('#{} {} {}'.format(share.id, share.url, share.path))
         elif args.subparser_name == "delete":
             ocs.delete_share_by_id(args.id)
         elif args.subparser_name == "update":
