@@ -22,12 +22,16 @@ class OCShareTool(QtWidgets.QWidget):
         self.ocs = OCShareAPI(args.url, args.username, args.password, args.disable_ssl_verification)
         self.public_share = None
         self.dialog_open = False
-        self.cloud_path = full_path_to_cloud(args.path)
+        self.cloud_path = full_path_to_cloud(os.path.realpath(args.path))
+        print('###1',self.cloud_path)
         if self.cloud_path is None:
+            print('###2',args.instant_upload_path)
             if args.instant_upload_path:
                 path = args.instant_upload_path
             else:
-                path = get_instant_upload_path()
+                print('###3')
+                path = get_instant_upload_path(args.url)
+            print('###4',path)
             if not path or not os.path.exists(path):
                 QtWidgets.QMessageBox.critical(
                     self,

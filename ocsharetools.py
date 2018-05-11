@@ -3,6 +3,7 @@
 import requests
 import os
 import configparser as ConfigParser
+from sys import platform as _platform
 
 DEBUG = False
 if DEBUG:
@@ -22,17 +23,14 @@ PERMISSION_SHARE = 16
 API_PATH = '/ocs/v1.php/apps/files_sharing/api/v1'
 SHARE_PATH = '/public.php?service=files&t='
 
-from sys import platform as _platform
-if _platform == 'linux' or _platform == 'linux2':
-    CONFIG_PATH = os.path.expanduser('~/.local/share/data/ownCloud')
-    FOLDER_CHAR = '/'
-elif _platform == 'darwin':
-    CONFIG_PATH = os.path.expanduser('~/Library/Application Support/ownCloud')
-    FOLDER_CHAR = '/'
-elif _platform == 'win32':
-    CONFIG_PATH = os.environ['APPDATA']+'\ownCloud\owncloud.cfg'
-    FOLDER_CHAR = '\\'
-
+if _platform.startswith('linux') or _platform.startswith('darwin'):
+    CONFIG_PATH = os.path.join( os.environ['HOME'], '.local/share/data/ownCloud/owncloud.cfg' ) 
+#elif _platform.startswith('darwin'):
+#    CONFIG_PATH = os.path.expanduser('~/Library/Application Support/ownCloud/owncloud.cfg')
+elif _platform.startswith('win32'):
+    CONFIG_PATH = os.path.join( os.environ['LOCALAPPDATA'], 'ownCloud\owncloud.cfg' )
+else:
+    raise NotImplementedError('Platform not supported')
 
 def check_status(jsonfeed):
     if jsonfeed['ocs']['meta']['statuscode'] != 100:
@@ -47,44 +45,31 @@ def check_request(request):
 
 
 def full_path_to_cloud(fullPath):
-    ## da sistemare, prende i path dalla vecchia versione, si aspetta
-    ## che in CONFIG_PATH/folders ci siano tanti file, uno per
-    ## account. Al momento penso che invece la directory folders non
-    ## venga più utilizzata. 
-    ## La nuova versione invece si aspetta un unico file di configurazione
-    ## owncloud.cfg dentro CONFIG_PATH
-    
+    bslash='\\'
     paths = []
-    for f in os.listdir(CONFIG_PATH+'/folders'):
-        config = ConfigParser.ConfigParser()
-        config.read('{}/{}'.format(CONFIG_PATH+'/folders', f))
-        paths.append(config['ownCloud']['localPath'])
-    #  config = ConfigParser.ConfigParser()
-    #  config.read(CONFIG_PATH+'/owncloud.cfg')
-    #  for a in config['Accounts']:
-    #      if a.split('\\')[-1].split('=')[0]=='localpath':
-    #         paths.append(config['Accounts'][a])
-
-    ## ATTENZIONE stessa modifica da fare nella routine successiva
-
+    config = ConfigParser.ConfigParser()
+    config.read(CONFIG_PATH)
+    for a in config['Accounts']:
+        if a.split(bslash)[-1]=='localpath':
+            paths.append(os.path.dirname(config['Accounts'][a]))
     for path in paths:
         if fullPath[:len(path)] == path:
-            return fullPath[len(path)-1:]
+            return fullPath[len(path):]
     return None
 
 
-def get_instant_upload_path():
-    for f in os.listdir(CONFIG_PATH+'/folders'):
-        config = ConfigParser.ConfigParser()
-        config.read('%s/%s' % (CONFIG_PATH+'/folders', f))
-        if config['ownCloud']['targetPath'] == '/':
-            return (
-                config['ownCloud']['localPath'] +
-                FOLDER_CHAR +
-                'InstantUpload' +
-                FOLDER_CHAR
-            )
-
+def get_instant_upload_path(url):
+    ## implementata di schifo fa l'InstantUpload soltanto sul primo server
+    bslash='\\'
+    config = ConfigParser.ConfigParser()
+    config.read(CONFIG_PATH)
+    for a in config['Accounts']:
+        if a.split(bslash)[-1]=='url' and  config['Accounts'][a]==url:
+            idx=a.split(bslash)[0]
+            break
+    for a in config['Accounts']:
+        if a.split(bslash)[0]==idx and  a.split(bslash)[-1]=='targetpath' and config['Accounts'][a]=='/':
+            return ( os.path.join( config['Accounts'][a.replace('targetpath','localpath')], 'InstantUpload' ) )
     return None
 
 
@@ -142,7 +127,7 @@ class OCShareAPI:
         """
 
         request = requests.get(
-            '{}{}/shares/{:d}'.format(self.url, API_PATH, share_id),
+            '{}{}/shares/{}'.format(self.url, API_PATH, share_id),
             auth=(self.username, self.password),
             params={'format': 'json'},
             verify=not self.disable_ssl_verification
@@ -171,7 +156,7 @@ class OCShareAPI:
             permissions -- Bitwise permissions, use the PERMISSION_* constants
         """
         request = requests.post(
-            '%s%s/shares' % (self.url, API_PATH),
+            '{}{}/shares'.format(self.url, API_PATH),
             allow_redirects=False,
             auth=(self.username, self.password),
             params={'format': 'json'},
@@ -198,7 +183,7 @@ class OCShareAPI:
         """Delete a share by ID"""
 
         request = requests.delete(
-            '%s%s/shares/%d' % (self.url, API_PATH, share_id),
+            '{}{}/shares/{}'.format(self.url, API_PATH, share_id),
             auth=(self.username, self.password),
             params={'format': 'json'},
             verify=not self.disable_ssl_verification
@@ -251,7 +236,7 @@ class OCShareAPI:
         if password is False:
             password = ''
         request = requests.put(
-            '%s%s/shares/%d' % (self.url, API_PATH, share_id),
+            '{}{}/shares/{}'.format(self.url, API_PATH, share_id),
             auth=(self.username, self.password),
             params={'format': 'json'},
             data={
@@ -293,13 +278,13 @@ class OCShare:
         )
 
     def __str__(self):
-        return '<OCShare #%d>' % (self.id)
+        return '<OCShare {}>'.fotmat(self.id)
 
     def __unicode__(self):
-        return '<OCShare #%d>' % (self.id)
+        return '<OCShare {}>'.fotmat(self.id)
 
     def __repr__(self):
-        return '<OCShare #%d>' % (self.id)
+        return '<OCShare {}>'.fotmat(self.id)
 
 if __name__ == '__main__':
     import ocsharetools_cli

@@ -235,7 +235,6 @@ def run():
     ocs = OCShareAPI(args.url, args.username, args.password, args.disable_ssl_verification)
     if args.subparser_name == "gui":
         import ocsharetools_gui
-        print(args)
         ocsharetools_gui.run(args)
     try:
         if args.subparser_name == "getshares":
